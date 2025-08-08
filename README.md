@@ -6,6 +6,11 @@ A production-ready REST API for managing properties and bookings, built with Nes
 
 </div>
 
+## Branches (important for reviewers)
+
+- main: Implements the assignment scope (booking and properties) with clear validation, standardized responses, and Swagger.
+- feature/auth: Adds full authentication (JWT), role-based access control (admin/user), guarded routes, and standardized error formatting. Use this branch to evaluate security and RBAC.
+
 ## Highlights
 
 - **Properties**: CRUD with availability windows and pagination.
@@ -105,6 +110,101 @@ All endpoints are prefixed with `/api/v1`.
   "timestamp": "2025-08-08T12:00:00.000Z"
 }
 ```
+
+## Authentication & Authorization
+
+JWT-based auth with roles is implemented.
+
+- Endpoints
+  - POST `/api/v1/auth/register` — Registers a new user
+  - POST `/api/v1/auth/login` — Returns `{ accessToken }` and user details
+
+- Roles
+  - `admin`: Can create/update/delete properties
+  - `user`: Can create/update/delete bookings (where applicable)
+
+- Protected routes
+  - Properties (write): `POST/PUT/DELETE /api/v1/properties/*` require `admin` + Bearer token
+  - Bookings (write): `POST/PUT/DELETE /api/v1/bookings/*` require valid Bearer token
+
+- Error responses
+  - Errors are standardized via `ResponseHelper` and a global exception filter
+  - Example forbidden response when role is insufficient:
+    ```json
+    {
+      "success": false,
+      "message": "Only admins can perform this action",
+      "timestamp": "2025-08-08T12:00:00.000Z",
+      "path": "/api/v1/properties",
+      "method": "POST"
+    }
+    ```
+
+### Test users (for reviewer/employer)
+
+- Admin user (role: admin)
+  ```json
+  {
+    "success": true,
+    "message": "Authenticated",
+    "data": {
+      "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlODAwODZkOS0zOTMzLTRiMzEtYWNiZC04ZjRmYmVjMzQzNjIiLCJlbWFpbCI6ImJlcm5hcmRtYXlvd2FhQGdtYWlsLmNvbSIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc1NDY1NTA4MiwiZXhwIjoxNzU0NjU1OTgyfQ.udF5QvOiKuezGiSuxmwvnHPuc_cF7_UMkEqOcQmJHHE",
+      "user": {
+        "id": "e80086d9-3933-4b31-acbd-8f4fbec34362",
+        "email": "bernardmayowaa@gmail.com",
+        "firstName": "Damilola",
+        "lastName": "Toyosi",
+        "phoneNumber": "+2348146694787",
+        "role": "admin",
+        "createdAt": "August 8, 2025",
+        "updatedAt": "August 8, 2025"
+      }
+    },
+    "timestamp": "2025-08-08T12:11:22.877Z"
+  }
+  ```
+
+- Regular user (role: user)
+  ```json
+  {
+    "success": true,
+    "message": "Authenticated",
+    "data": {
+      "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkNWE1MzUwMy00N2ZlLTRhNGEtOGRlZC1mYTBiZWM4MzI1ZDciLCJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20iLCJyb2xlIjoidXNlciIsImlhdCI6MTc1NDY1NTE4NywiZXhwIjoxNzU0NjU2MDg3fQ.qIGzYRgUY9TWupm0KjrR7dkP6WM0nkROErGCbMnWOSk",
+      "user": {
+        "id": "d5a53503-47fe-4a4a-8ded-fa0bec8325d7",
+        "email": "user@example.com",
+        "firstName": "Mayowa",
+        "lastName": "Bernard",
+        "phoneNumber": "+15551234567",
+        "role": "user",
+        "createdAt": "August 8, 2025",
+        "updatedAt": "August 8, 2025"
+      }
+    },
+    "timestamp": "2025-08-08T12:13:07.311Z"
+  }
+  ```
+
+Note: Tokens expire; if expired, re-login to obtain a fresh token.
+
+### Postman helper (save JWT)
+
+Add this to the Tests tab of your login (or register) request to store the token as a collection variable `{{accessToken}}`:
+
+```javascript
+try {
+  const json = pm.response.json();
+  const token = json?.data?.accessToken;
+  if (token) {
+    pm.collectionVariables.set('accessToken', token);
+  }
+} catch (e) {}
+```
+
+Then set Authorization header in subsequent requests to:
+- Key: `Authorization`
+- Value: `Bearer {{accessToken}}`
 
 ## Validation & Error Handling
 

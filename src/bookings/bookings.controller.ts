@@ -24,6 +24,9 @@ import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { Request } from 'express';
+import { UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ApiBearerAuth } from '@nestjs/swagger';
 
 @ApiTags('bookings')
 @Controller('bookings')
@@ -87,6 +90,8 @@ export class BookingsController {
     return this.bookingsService.findOne(id);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new booking for a property' })
@@ -150,6 +155,8 @@ export class BookingsController {
     return this.bookingsService.create(createBookingDto);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Put(':id')
   @ApiOperation({ summary: 'Update a booking' })
   @ApiParam({ name: 'id', description: 'Booking ID', type: 'number' })
@@ -166,6 +173,8 @@ export class BookingsController {
     return this.bookingsService.update(id, updateBookingDto);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Delete(':id')
   @ApiOperation({ summary: 'Cancel (soft delete) a booking' })
   @ApiParam({ name: 'id', description: 'Booking ID', type: 'number' })

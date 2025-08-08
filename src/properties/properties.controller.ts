@@ -20,8 +20,13 @@ import {
   ApiQuery,
   ApiBody,
   ApiOkResponse,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { PropertiesService } from './properties.service';
+import { UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { Request } from 'express';
@@ -81,11 +86,16 @@ export class PropertiesController {
     return this.propertiesService.findOne(id);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @ApiBearerAuth()
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new property' })
   @ApiBody({ type: CreatePropertyDto })
   @ApiResponse({ status: 201, description: 'Property created successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden (requires admin role)' })
   @ApiResponse({ status: 400, description: 'Invalid property data' })
   async create(
     @Body() createPropertyDto: CreatePropertyDto,
@@ -94,11 +104,16 @@ export class PropertiesController {
     return this.propertiesService.create(createPropertyDto);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @ApiBearerAuth()
   @Put(':id')
   @ApiOperation({ summary: 'Update a property' })
   @ApiParam({ name: 'id', description: 'Property ID', type: 'number' })
   @ApiBody({ type: UpdatePropertyDto })
   @ApiResponse({ status: 200, description: 'Property updated successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden (requires admin role)' })
   @ApiResponse({ status: 404, description: 'Property not found' })
   @ApiResponse({ status: 400, description: 'Invalid property data or ID' })
   async update(
@@ -109,11 +124,16 @@ export class PropertiesController {
     return this.propertiesService.update(id, updatePropertyDto);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @ApiBearerAuth()
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a property' })
   @ApiParam({ name: 'id', description: 'Property ID', type: 'number' })
   @ApiResponse({ status: 204, description: 'Property deleted successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden (requires admin role)' })
   @ApiResponse({ status: 404, description: 'Property not found' })
   @ApiResponse({ status: 400, description: 'Invalid property ID' })
   async remove(@Param('id') id: string, @Req() req: Request) {

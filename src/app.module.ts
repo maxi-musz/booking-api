@@ -6,12 +6,14 @@ import { BookingsModule } from './bookings/bookings.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
     PropertiesModule,
     BookingsModule,
     PrismaModule,
+    AuthModule,
     WinstonModule.forRoot({
       transports: [
         new winston.transports.Console({

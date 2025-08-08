@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -23,6 +24,9 @@ async function bootstrap() {
       },
     }),
   );
+
+  // Global exception filter to unify error responses
+  app.useGlobalFilters(new HttpExceptionFilter());
 
   // Swagger documentation setup
   const config = new DocumentBuilder()
