@@ -1,99 +1,133 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Booking & Property Management API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A robust RESTful API for managing property listings and bookings, built with NestJS and Prisma ORM. This project demonstrates best practices in backend development, including validation, error handling, date management, and comprehensive API documentation with Swagger.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Features
 
-## Description
+- **Property Management:** Create, update, delete, and list properties with availability ranges.
+- **Booking System:** Book properties for specific date ranges, with validation against availability and overlapping bookings.
+- **Availability Endpoint:** View a property’s available date range and all booked dates.
+- **Date Handling:** Supports `DD-MM-YYYY` and `YYYY-MM-DD` formats, with strict validation and formatting in responses.
+- **Timestamps:** All entities include `createdAt` and `updatedAt` fields.
+- **Consistent API Responses:** All endpoints return structured responses with metadata (`success`, `message`, `data`, `length`, `timestamp`).
+- **Error Handling:** Clear error messages for invalid input, unavailable dates, and overlapping bookings.
+- **Swagger Documentation:** All endpoints, request/response formats, and error structures are documented and visible in the OpenAPI spec.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Technology Stack
 
-## Project setup
+- **NestJS:** Modular, scalable Node.js framework.
+- **Prisma ORM:** Type-safe database access.
+- **PostgreSQL:** Relational database (configurable).
+- **Swagger (OpenAPI):** Auto-generated API documentation.
+- **Jest:** Unit and integration testing.
 
-```bash
-$ npm install
-```
+## Getting Started
 
-## Compile and run the project
+### Prerequisites
+
+- Node.js (v18+ recommended)
+- npm or yarn
+- PostgreSQL database
+
+### Installation
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+git clone <your-repo-url>
+cd booking-api
+npm install
 ```
 
-## Run tests
+### Environment Setup
+
+1. Copy `.env.example` to `.env` and configure your database connection string.
+2. Run Prisma migrations to set up the database schema:
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npx prisma migrate dev --name init
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### Running the Application
 
 ```bash
-$ npm install -g mau
-$ mau deploy
+npm run start:dev
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+The API will be available at `http://localhost:3000/api/v1`.
 
-## Resources
+### API Documentation
 
-Check out a few resources that may come in handy when working with NestJS:
+Swagger UI is available at:
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+```
+http://localhost:3000/api/v1/docs
+```
 
-## Support
+## Usage
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+### Property Endpoints
 
-## Stay in touch
+- `GET /properties`: List all properties (paginated).
+- `GET /properties/:id`: Get property details, including availability and booked dates.
+- `POST /properties`: Create a new property.
+- `PATCH /properties/:id`: Update property details.
+- `DELETE /properties/:id`: Remove a property.
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+### Booking Endpoints
+
+- `POST /bookings`: Create a booking for a property.
+- `GET /bookings`: List all bookings.
+- `GET /bookings/:id`: Get booking details.
+
+### Availability
+
+- Property details include:
+  - `availableFrom`, `availableTo`: Date range the property can be booked.
+  - `bookedDates`: Array of booked date ranges.
+
+### Response Format
+
+All responses follow this structure:
+
+```json
+{
+  "success": true,
+  "message": "Descriptive message",
+  "data": { ... },
+  "length": 1,
+  "timestamp": "2025-08-08T12:00:00.000Z"
+}
+```
+
+## Validation & Error Handling
+
+- Dates are validated for format and logical range.
+- Bookings are checked for overlap and property availability.
+- All errors return clear messages and appropriate HTTP status codes.
+
+## Testing
+
+Run unit and integration tests:
+
+```bash
+npm run test
+```
+
+## Project Structure
+
+- `src/`: Main source code
+  - `properties/`: Property controllers, services, DTOs
+  - `bookings/`: Booking controllers, services, DTOs
+  - `common/`: Utilities and validators
+  - `shared/`: Response helpers
+  - `config/`: Configuration files
+  - `prisma/`: Prisma service integration
+- `prisma/`: Prisma schema and migrations
+- `test/`: End-to-end tests
+
+## Contributing
+
+Pull requests and issues are welcome. Please follow conventional commit messages and ensure all tests pass.
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+MIT

@@ -4,12 +4,14 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Booking } from '../../generated/prisma';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { InputUtils } from '../common/utils/input.utils';
+import { ResponseHelper } from 'src/shared';
 
 @Injectable()
 export class BookingsService {
@@ -17,7 +19,7 @@ export class BookingsService {
 
   constructor(private readonly prismaService: PrismaService) {}
 
-  async findAll(page = 1, limit = 10): Promise<Booking[]> {
+  async findAll(page = 1, limit = 10) {
     this.logger.log(`Fetching bookings with page: ${page}, limit: ${limit}`);
 
     if (page < 1 || limit < 1 || limit > 100) {
@@ -37,29 +39,30 @@ export class BookingsService {
           id: 'desc',
         },
       });
-
-      this.logger.log(`Successfully fetched ${bookings.length} bookings`);
-      return bookings;
+      return {
+        success: true,
+        message: 'Bookings retrieved successfully',
+        data: bookings,
+        length: bookings.length,
+      };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      const errorStack = error instanceof Error ? error.stack : undefined;
-      this.logger.error(
-        `Failed to fetch bookings: ${errorMessage}`,
-        errorStack,
-      );
+      this.logger.error('Failed to fetch bookings', error.stack);
       throw error;
     }
   }
 
-  async findOne(id: number): Promise<Booking> {
-    this.logger.log(`Fetching booking with ID: ${id}`);
-
-    if (!InputUtils.isPositiveNumber(id)) {
-      throw new BadRequestException(
-        'Invalid booking ID. Must be a positive number.',
-      );
+  async count(): Promise<number> {
+    try {
+      const count = await this.prismaService.booking.count();
+      return count;
+    } catch (error) {
+      this.logger.error('Failed to count bookings', error.stack);
+      throw error;
     }
+  }
+
+  async findOne(id: string) {
+    this.logger.log(`Fetching booking with ID: ${id}`);
 
     try {
       const booking = await this.prismaService.booking.findUnique({
@@ -74,157 +77,171 @@ export class BookingsService {
         throw new NotFoundException(`Booking with ID ${id} not found`);
       }
 
-      this.logger.log(`Successfully fetched booking with ID: ${id}`);
-      return booking;
+      return {
+        success: true,
+        message: 'Booking retrieved successfully',
+        data: booking,
+      };
     } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      const errorStack = error instanceof Error ? error.stack : undefined;
-      this.logger.error(
-        `Failed to fetch booking with ID ${id}: ${errorMessage}`,
-        errorStack,
-      );
+      this.logger.error('Failed to fetch booking', error.stack);
       throw error;
     }
   }
 
-  async create(createBookingDto: CreateBookingDto): Promise<Booking> {
-    this.logger.log('Creating new booking');
+  async create(createBookingDto: CreateBookingDto) {
+    this.logger.log('Creating new booking', createBookingDto);
 
-    // Trim string inputs
+    // 1. Sanitize and Parse Input
     const trimmedDto = InputUtils.trimObject(createBookingDto);
+    const startDateObj = InputUtils.parseDate(trimmedDto.startDate);
+    const endDateObj = InputUtils.parseDate(trimmedDto.endDate);
 
-    // Validate dates
-    if (
-      !InputUtils.isValidDateRange(trimmedDto.startDate, trimmedDto.endDate)
-    ) {
+    // 2. Basic Date Validations
+    if (!InputUtils.isValidDateRange(startDateObj, endDateObj)) {
       throw new BadRequestException('Start date must be before end date');
     }
 
-    // Check if start date is in the future
-    if (!InputUtils.isFutureDate(trimmedDto.startDate)) {
+    if (!InputUtils.isFutureDate(startDateObj)) {
       throw new BadRequestException('Start date must be in the future');
     }
 
-    // Check if property exists
+    // 3. Ensure Property Exists
     const property = await this.prismaService.property.findUnique({
       where: { id: trimmedDto.propertyId },
     });
 
     if (!property) {
-      throw new NotFoundException(
-        `Property with ID ${trimmedDto.propertyId} not found`,
+      throw new NotFoundException(`Property with ID ${trimmedDto.propertyId} not found`);
+    }
+
+    // 4. Validate Date Range Falls Within Property Availability
+    if (
+      startDateObj < property.availableFrom ||
+      endDateObj > property.availableTo
+    ) {
+      throw new BadRequestException(
+        `Booking dates must be within the property's availability range: ${property.availableFrom.toDateString()} to ${property.availableTo.toDateString()}`
       );
     }
 
-    // Check if property is available for the requested dates
-    const isAvailable = await this.checkPropertyAvailability(
-      trimmedDto.propertyId,
-      trimmedDto.startDate,
-      trimmedDto.endDate,
-    );
+    // 5. I Check for Overlapping Bookings Here
+    const overlappingBookings = await this.prismaService.booking.findMany({
+      where: {
+        propertyId: trimmedDto.propertyId,
+        NOT: [
+          { endDate: { lte: startDateObj } },
+          { startDate: { gte: endDateObj } },
+        ],
+      },
+      select: {
+        startDate: true,
+        endDate: true,
+      },
+    });
 
-    if (!isAvailable) {
-      throw new ConflictException(
-        'Property is not available for the requested dates',
-      );
+    if (overlappingBookings.length > 0) {
+      const overlaps = overlappingBookings.map(b => ({
+        startDate: b.startDate.toISOString().slice(0, 10),
+        endDate: b.endDate.toISOString().slice(0, 10),
+      }));
+      throw new ConflictException({
+        message: 'Booking dates overlap with existing bookings',
+        overlaps,
+        requested: {
+          startDate: startDateObj.toISOString().slice(0, 10),
+          endDate: endDateObj.toISOString().slice(0, 10),
+        }
+      });
     }
 
+    // 6. Create Booking
     try {
       const booking = await this.prismaService.booking.create({
         data: {
           propertyId: trimmedDto.propertyId,
           userName: trimmedDto.userName,
-          startDate: new Date(trimmedDto.startDate),
-          endDate: new Date(trimmedDto.endDate),
+          startDate: startDateObj,
+          endDate: endDateObj,
         },
         include: {
           property: true,
         },
       });
 
-      this.logger.log(`Successfully created booking with ID: ${booking.id}`);
-      return booking;
+      const formattedBooking = {
+        id: booking.id,
+        propertyId: booking.propertyId,
+        userName: booking.userName,
+        startDate: booking.startDate.toISOString().slice(0, 10),
+        endDate: booking.endDate.toISOString().slice(0, 10),
+        property: booking.property,
+      };
+
+      return ResponseHelper.success('Booking created successfully', formattedBooking);
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      const errorStack = error instanceof Error ? error.stack : undefined;
-      this.logger.error(
-        `Failed to create booking: ${errorMessage}`,
-        errorStack,
-      );
-      throw error;
+      this.logger.error('Failed to create booking', error.stack);
+      throw new InternalServerErrorException('An error occurred while creating the booking');
     }
   }
 
-  async update(
-    id: number,
-    updateBookingDto: UpdateBookingDto,
-  ): Promise<Booking> {
+
+  async update(id: string, updateBookingDto: UpdateBookingDto) {
     this.logger.log(`Updating booking with ID: ${id}`);
 
-    if (!InputUtils.isPositiveNumber(id)) {
-      throw new BadRequestException(
-        'Invalid booking ID. Must be a positive number.',
-      );
-    }
-
     // Check if booking exists
-    const existingBooking = await this.findOne(id);
+    await this.findOne(id);
 
     // Trim string inputs
     const trimmedDto = InputUtils.trimObject(updateBookingDto);
 
+    // Convert date strings to Date objects if present
+    const startDateObj = trimmedDto.startDate ? new Date(trimmedDto.startDate) : undefined;
+    const endDateObj = trimmedDto.endDate ? new Date(trimmedDto.endDate) : undefined;
+
     // Validate dates if both are provided
-    if (trimmedDto.startDate && trimmedDto.endDate) {
-      if (
-        !InputUtils.isValidDateRange(trimmedDto.startDate, trimmedDto.endDate)
-      ) {
+    if (startDateObj && endDateObj) {
+      if (!InputUtils.isValidDateRange(startDateObj, endDateObj)) {
         throw new BadRequestException('Start date must be before end date');
       }
-    } else if (trimmedDto.startDate) {
-      // If only startDate is provided, check against existing endDate
-      if (
-        !InputUtils.isValidDateRange(
-          trimmedDto.startDate,
-          existingBooking.endDate,
-        )
-      ) {
-        throw new BadRequestException(
-          'Start date must be before existing end date',
-        );
+    } else if (startDateObj) {
+      const existing = await this.prismaService.booking.findUnique({ where: { id } });
+      if (!existing?.endDate) {
+        throw new BadRequestException('Existing endDate is missing');
       }
-    } else if (trimmedDto.endDate) {
-      // If only endDate is provided, check against existing startDate
-      if (
-        !InputUtils.isValidDateRange(
-          existingBooking.startDate,
-          trimmedDto.endDate,
-        )
-      ) {
-        throw new BadRequestException(
-          'End date must be after existing start date',
-        );
+      if (!InputUtils.isValidDateRange(startDateObj, existing.endDate)) {
+        throw new BadRequestException('Start date must be before existing end date');
+      }
+    } else if (endDateObj) {
+      const existing = await this.prismaService.booking.findUnique({ where: { id } });
+      if (!existing?.startDate) {
+        throw new BadRequestException('Existing startDate is missing');
+      }
+      if (!InputUtils.isValidDateRange(existing.startDate, endDateObj)) {
+        throw new BadRequestException('End date must be after existing start date');
       }
     }
 
     // Check if start date is in the future if provided
     if (
-      trimmedDto.startDate &&
-      !InputUtils.isFutureDate(trimmedDto.startDate)
+      startDateObj &&
+      !InputUtils.isFutureDate(startDateObj)
     ) {
       throw new BadRequestException('Start date must be in the future');
     }
 
     // Check property availability if dates or property are being updated
-    if (trimmedDto.startDate || trimmedDto.endDate || trimmedDto.propertyId) {
-      const propertyId = trimmedDto.propertyId || existingBooking.propertyId;
-      const startDate = trimmedDto.startDate || existingBooking.startDate;
-      const endDate = trimmedDto.endDate || existingBooking.endDate;
+    if (startDateObj || endDateObj || trimmedDto.propertyId) {
+      const existing = await this.prismaService.booking.findUnique({ where: { id } });
+      const propertyId = trimmedDto.propertyId || existing?.propertyId;
+      const startDate = startDateObj || existing?.startDate;
+      const endDate = endDateObj || existing?.endDate;
 
+      if (!propertyId) {
+        throw new BadRequestException('Property ID is missing');
+      }
+      if (!startDate || !endDate) {
+        throw new BadRequestException('Start date or end date is missing');
+      }
       const isAvailable = await this.checkPropertyAvailability(
         propertyId,
         startDate,
@@ -245,36 +262,32 @@ export class BookingsService {
         data: {
           ...(trimmedDto.propertyId && { propertyId: trimmedDto.propertyId }),
           ...(trimmedDto.userName && { userName: trimmedDto.userName }),
-          ...(trimmedDto.startDate && {
-            startDate: new Date(trimmedDto.startDate),
+          ...(startDateObj && {
+            startDate: startDateObj,
           }),
-          ...(trimmedDto.endDate && { endDate: new Date(trimmedDto.endDate) }),
+          ...(endDateObj && { endDate: endDateObj }),
         },
         include: {
           property: true,
         },
       });
-
-      this.logger.log(`Successfully updated booking with ID: ${id}`);
-      return updatedBooking;
+      return {
+        success: true,
+        message: 'Booking updated successfully',
+        data: updatedBooking,
+      };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      const errorStack = error instanceof Error ? error.stack : undefined;
-      this.logger.error(
-        `Failed to update booking with ID ${id}: ${errorMessage}`,
-        errorStack,
-      );
+      this.logger.error('Failed to update booking', error.stack);
       throw error;
     }
   }
 
-  async remove(id: number): Promise<Booking> {
+  async remove(id: string) {
     this.logger.log(`Deleting booking with ID: ${id}`);
 
-    if (!InputUtils.isPositiveNumber(id)) {
+    if (!InputUtils.isPositiveString(id)) {
       throw new BadRequestException(
-        'Invalid booking ID. Must be a positive number.',
+        'Invalid booking ID. Must be a non-empty string.',
       );
     }
 
@@ -282,32 +295,28 @@ export class BookingsService {
     await this.findOne(id);
 
     try {
-      const deletedBooking = await this.prismaService.booking.delete({
+      await this.prismaService.booking.delete({
         where: { id },
         include: {
           property: true,
         },
       });
-
-      this.logger.log(`Successfully deleted booking with ID: ${id}`);
-      return deletedBooking;
+      return {
+        success: true,
+        message: 'Booking deleted successfully',
+        data: {},
+      };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      const errorStack = error instanceof Error ? error.stack : undefined;
-      this.logger.error(
-        `Failed to delete booking with ID ${id}: ${errorMessage}`,
-        errorStack,
-      );
+      this.logger.error('Failed to delete booking', error.stack);
       throw error;
     }
   }
 
   private async checkPropertyAvailability(
-    propertyId: number,
+    propertyId: string,
     startDate: Date,
     endDate: Date,
-    excludeBookingId?: number,
+    excludeBookingId?: string,
   ): Promise<boolean> {
     const conflictingBookings = await this.prismaService.booking.findMany({
       where: {

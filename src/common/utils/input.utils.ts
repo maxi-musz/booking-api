@@ -76,4 +76,11 @@ export class InputUtils {
       date.getFullYear() === year
     );
   }
+
+  /**
+   * Checks if a string is a non-empty positive string (for IDs)
+   */
+  static isPositiveString(value: string | undefined | null): boolean {
+    return typeof value === 'string' && value.trim().length > 0;
+  }
 }

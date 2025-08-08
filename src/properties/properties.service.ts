@@ -9,6 +9,7 @@ import { Property } from '../../generated/prisma';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { InputUtils } from '../common/utils/input.utils';
+import { ResponseHelper } from '../shared/helpers/response.helper';
 
 @Injectable()
 export class PropertiesService {
@@ -16,7 +17,7 @@ export class PropertiesService {
 
   constructor(private readonly prismaService: PrismaService) {}
 
-  async findAll(page = 1, limit = 10): Promise<Property[]> {
+  async findAll(page = 1, limit = 10): Promise<any> {
     this.logger.log(`Fetching properties with page: ${page}, limit: ${limit}`);
 
     if (page < 1 || limit < 1 || limit > 100) {
@@ -34,8 +35,21 @@ export class PropertiesService {
         },
       });
 
+      // Format all properties' dates as YYYY-MM-DD
+      const formattedResponse = properties.map((property) => ({
+        id: property.id,
+        title: property.title,
+        description: property.description,
+        pricePerNight: property.pricePerNight,
+        availableFrom: property.availableFrom.toISOString().slice(0, 10),
+        availableTo: property.availableTo.toISOString().slice(0, 10),
+      }));
+
       this.logger.log(`Successfully fetched ${properties.length} properties`);
-      return properties;
+      return ResponseHelper.success(
+        'Properties fetched successfully',
+        formattedResponse
+      );
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
@@ -48,14 +62,24 @@ export class PropertiesService {
     }
   }
 
-  async findOne(id: number): Promise<Property> {
-    this.logger.log(`Fetching property with ID: ${id}`);
-
-    if (!InputUtils.isPositiveNumber(id)) {
-      throw new BadRequestException(
-        'Invalid property ID. Must be a positive number.',
+  async count(): Promise<number> {
+    try {
+      const count = await this.prismaService.property.count();
+      return count;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(
+        `Failed to count properties: ${errorMessage}`,
+        errorStack,
       );
+      throw error;
     }
+  }
+
+  async findOne(id: string){
+    this.logger.log(`Fetching property with ID: ${id}`);
 
     try {
       const property = await this.prismaService.property.findUnique({
@@ -67,8 +91,36 @@ export class PropertiesService {
         throw new NotFoundException(`Property with ID ${id} not found`);
       }
 
+      // Fetch all bookings for this property
+      const bookings = await this.prismaService.booking.findMany({
+        where: { propertyId: id },
+        select: {
+          startDate: true,
+          endDate: true,
+        },
+      });
+
+      // Format booked dates as array of ranges
+      const bookedDates = bookings.map(b => ({
+        startDate: b.startDate.toISOString().slice(0, 10),
+        endDate: b.endDate.toISOString().slice(0, 10),
+      }));
+
+      const formattedProperty = {
+        id: property.id,
+        title: property.title,
+        description: property.description,
+        pricePerNight: property.pricePerNight,
+        availableFrom: property.availableFrom.toISOString().slice(0, 10),
+        availableTo: property.availableTo.toISOString().slice(0, 10),
+        bookedDates,
+      }
+
       this.logger.log(`Successfully fetched property with ID: ${id}`);
-      return property;
+      return ResponseHelper.success(
+        "Property successfully retrieved",
+        formattedProperty
+      );
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
@@ -84,19 +136,26 @@ export class PropertiesService {
     }
   }
 
-  async create(createPropertyDto: CreatePropertyDto): Promise<Property> {
+  async create(createPropertyDto: CreatePropertyDto) {
     this.logger.log('Creating new property');
 
     // Trim string inputs
     const trimmedDto = InputUtils.trimObject(createPropertyDto);
 
+    // Convert date strings to Date objects (support DD-MM-YYYY and YYYY-MM-DD)
+    function parseDate(dateStr: string): Date {
+      // If format is DD-MM-YYYY, convert to YYYY-MM-DD
+      if (/^\d{2}-\d{2}-\d{4}$/.test(dateStr)) {
+        const [day, month, year] = dateStr.split('-');
+        return new Date(`${year}-${month}-${day}`);
+      }
+      return new Date(dateStr);
+    }
+    const availableFromDate = parseDate(trimmedDto.availableFrom);
+    const availableToDate = parseDate(trimmedDto.availableTo);
+
     // Validate dates
-    if (
-      !InputUtils.isValidDateRange(
-        trimmedDto.availableFrom,
-        trimmedDto.availableTo,
-      )
-    ) {
+    if (!InputUtils.isValidDateRange(availableFromDate, availableToDate)) {
       throw new BadRequestException(
         'Available from date must be before available to date',
       );
@@ -115,78 +174,75 @@ export class PropertiesService {
           title: trimmedDto.title,
           description: trimmedDto.description,
           pricePerNight: trimmedDto.pricePerNight,
-          availableFrom: new Date(trimmedDto.availableFrom),
-          availableTo: new Date(trimmedDto.availableTo),
+          availableFrom: availableFromDate,
+          availableTo: availableToDate,
         },
       });
 
+      const formattedProperty = {
+        id: property.id,
+        title: property.title,
+        description: property.description,
+        pricePerNight: property.pricePerNight,
+        availableFrom: property.availableFrom.toISOString().slice(0, 10),
+        availableTo: property.availableTo.toISOString().slice(0, 10),
+      };
+
       this.logger.log(`Successfully created property with ID: ${property.id}`);
-      return property;
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      const errorStack = error instanceof Error ? error.stack : undefined;
-      this.logger.error(
-        `Failed to create property: ${errorMessage}`,
-        errorStack,
+      return ResponseHelper.success(
+        'Property created successfully',
+        formattedProperty,
       );
-      throw error;
+    } catch (error) {
+      this.logger.error(`Failed to create property: ${error}`);
+      return ResponseHelper.error(
+        'Failed to create property',
+        error.message,
+      );
     }
   }
 
   async update(
-    id: number,
+    id: string,
     updatePropertyDto: UpdatePropertyDto,
-  ): Promise<Property> {
+  ) {
     this.logger.log(`Updating property with ID: ${id}`);
-
-    if (!InputUtils.isPositiveNumber(id)) {
-      throw new BadRequestException(
-        'Invalid property ID. Must be a positive number.',
-      );
-    }
-
-    // Check if property exists
-    const existingProperty = await this.findOne(id);
 
     // Trim string inputs
     const trimmedDto = InputUtils.trimObject(updatePropertyDto);
 
+    // Convert date strings to Date objects if present
+    const availableFromDate = trimmedDto.availableFrom
+      ? InputUtils.parseDate(trimmedDto.availableFrom)
+      : undefined;
+    const availableToDate = trimmedDto.availableTo
+      ? InputUtils.parseDate(trimmedDto.availableTo)
+      : undefined;
+
+    // Check if property exists
+    const existingResponse = await this.findOne(id);
+    const existingProperty = existingResponse?.data;
+
     // Validate dates if both are provided
-    if (trimmedDto.availableFrom && trimmedDto.availableTo) {
-      if (
-        !InputUtils.isValidDateRange(
-          trimmedDto.availableFrom,
-          trimmedDto.availableTo,
-        )
-      ) {
-        throw new BadRequestException(
-          'Available from date must be before available to date',
-        );
+    if (availableFromDate && availableToDate) {
+      if (!InputUtils.isValidDateRange(availableFromDate, availableToDate)) {
+        throw new BadRequestException('Available from date must be before available to date');
       }
-    } else if (trimmedDto.availableFrom) {
-      // If only availableFrom is provided, check against existing availableTo
-      if (
-        !InputUtils.isValidDateRange(
-          trimmedDto.availableFrom,
-          existingProperty.availableTo,
-        )
-      ) {
-        throw new BadRequestException(
-          'Available from date must be before existing available to date',
-        );
+    } else if (availableFromDate) {
+      if (!existingProperty || !existingProperty.availableTo) {
+        throw new BadRequestException('Existing availableTo date is missing');
       }
-    } else if (trimmedDto.availableTo) {
-      // If only availableTo is provided, check against existing availableFrom
-      if (
-        !InputUtils.isValidDateRange(
-          existingProperty.availableFrom,
-          trimmedDto.availableTo,
-        )
-      ) {
-        throw new BadRequestException(
-          'Available to date must be after existing available from date',
-        );
+      const existingAvailableToDate = InputUtils.parseDate(existingProperty.availableTo);
+      if (!InputUtils.isValidDateRange(availableFromDate, existingAvailableToDate)) {
+        throw new BadRequestException('Available from date must be before existing available to date');
+      }
+    } else if (availableToDate) {
+      if (!existingProperty || !existingProperty.availableFrom) {
+        throw new BadRequestException('Existing availableFrom date is missing');
+      }
+      const existingAvailableFromDate = InputUtils.parseDate(existingProperty.availableFrom);
+      if (!InputUtils.isValidDateRange(existingAvailableFromDate, availableToDate)) {
+        throw new BadRequestException('Available to date must be after existing available from date');
       }
     }
 
@@ -211,17 +267,20 @@ export class PropertiesService {
           ...(trimmedDto.pricePerNight !== undefined && {
             pricePerNight: trimmedDto.pricePerNight,
           }),
-          ...(trimmedDto.availableFrom && {
-            availableFrom: new Date(trimmedDto.availableFrom),
+          ...(availableFromDate && {
+            availableFrom: availableFromDate,
           }),
-          ...(trimmedDto.availableTo && {
-            availableTo: new Date(trimmedDto.availableTo),
+          ...(availableToDate && {
+            availableTo: availableToDate,
           }),
         },
       });
 
       this.logger.log(`Successfully updated property with ID: ${id}`);
-      return updatedProperty;
+      return ResponseHelper.success(
+        'Property updated successfully',
+        updatedProperty,
+      );
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
@@ -234,14 +293,8 @@ export class PropertiesService {
     }
   }
 
-  async remove(id: number): Promise<Property> {
+  async remove(id: string){
     this.logger.log(`Deleting property with ID: ${id}`);
-
-    if (!InputUtils.isPositiveNumber(id)) {
-      throw new BadRequestException(
-        'Invalid property ID. Must be a positive number.',
-      );
-    }
 
     // Check if property exists
     await this.findOne(id);
@@ -251,8 +304,20 @@ export class PropertiesService {
         where: { id },
       });
 
+      const formattedResponse = {
+        id: deletedProperty.id,
+        title: deletedProperty.title,
+        description: deletedProperty.description,
+        pricePerNight: deletedProperty.pricePerNight,
+        availableFrom: deletedProperty.availableFrom.toISOString().slice(0, 10),
+        availableTo: deletedProperty.availableTo.toISOString().slice(0, 10),
+      };
+
       this.logger.log(`Successfully deleted property with ID: ${id}`);
-      return deletedProperty;
+      return ResponseHelper.success(
+        'Property deleted successfully',
+        formattedResponse
+      )
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';

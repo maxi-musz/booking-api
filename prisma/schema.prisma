@@ -14,25 +14,25 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 model Property {
-  id             Int       @id @default(autoincrement())
-  title          String
-  description    String
-  pricePerNight  Float
-  availableFrom  DateTime
-  availableTo    DateTime
-  bookings       Booking[]
+  id            String    @id @default(uuid())
+  title         String
+  description   String
+  pricePerNight Float
+  availableFrom DateTime
+  availableTo   DateTime
+  bookings      Booking[]
+  createdAt     DateTime?  @default(now())
+  updatedAt     DateTime?  @updatedAt
 }
 
 model Booking {
-  id         Int      @id @default(autoincrement())
+  id         String   @id @default(uuid())
   property   Property @relation(fields: [propertyId], references: [id])
-  propertyId Int
+  propertyId String
   userName   String
   startDate  DateTime
   endDate    DateTime
-  createdAt  DateTime @default(now())
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
 }
-
-
