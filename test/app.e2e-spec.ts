@@ -23,3 +23,35 @@ describe('AppController (e2e)', () => {
       .expect('Hello World!');
   });
 });
+
+describe('Bookings (e2e)', () => {
+  let app: INestApplication;
+
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    await app.init();
+  });
+
+  it('/bookings (POST) should create a booking', async () => {
+    return request(app.getHttpServer())
+      .post('/bookings')
+      .send({
+        propertyId: 'property-id',
+        userName: 'John Doe',
+        startDate: '2025-08-10',
+        endDate: '2025-08-12',
+      })
+      .expect(201)
+      .expect(res => {
+        expect(res.body.success).toBe(true);
+      });
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+});

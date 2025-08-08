@@ -1,62 +1,35 @@
+<div align="center">
+
 # Booking & Property Management API
 
-A robust RESTful API for managing property listings and bookings, built with NestJS and Prisma ORM. This project demonstrates best practices in backend development, including validation, error handling, date management, and comprehensive API documentation with Swagger.
+A production-ready REST API for managing properties and bookings, built with NestJS and Prisma. It showcases pragmatic architecture, robust validation, clean error handling, and clear documentation.
 
-## Features
+</div>
 
-- **Property Management:** Create, update, delete, and list properties with availability ranges.
-- **Booking System:** Book properties for specific date ranges, with validation against availability and overlapping bookings.
-- **Availability Endpoint:** View a property’s available date range and all booked dates.
-- **Date Handling:** Supports `DD-MM-YYYY` and `YYYY-MM-DD` formats, with strict validation and formatting in responses.
-- **Timestamps:** All entities include `createdAt` and `updatedAt` fields.
-- **Consistent API Responses:** All endpoints return structured responses with metadata (`success`, `message`, `data`, `length`, `timestamp`).
-- **Error Handling:** Clear error messages for invalid input, unavailable dates, and overlapping bookings.
-- **Swagger Documentation:** All endpoints, request/response formats, and error structures are documented and visible in the OpenAPI spec.
+## Highlights
 
-## Technology Stack
+- **Properties**: CRUD with availability windows and pagination.
+- **Bookings**: Create, list, get, update, cancel; prevents overlaps and enforces availability windows.
+- **Date handling**: Accepts `YYYY-MM-DD` and `DD-MM-YYYY` inputs, returns ISO-formatted dates.
+- **Consistent responses**: Unified response shape via `ResponseHelper`.
+- **Documentation**: Interactive Swagger UI.
+- **Testing**: Unit tests for services and controllers.
 
-- **NestJS:** Modular, scalable Node.js framework.
-- **Prisma ORM:** Type-safe database access.
-- **PostgreSQL:** Relational database (configurable).
-- **Swagger (OpenAPI):** Auto-generated API documentation.
-- **Jest:** Unit and integration testing.
+## Tech Stack
 
-### Setup Instructions
-See the **Getting Started** section below for installation, environment setup, and running the application.
+- NestJS 11, TypeScript 5
+- Prisma ORM, PostgreSQL
+- Jest, ts-jest
+- Swagger (OpenAPI)
 
-### How to Test the Endpoints
-- Use Swagger UI at `http://localhost:3000/api/v1/docs` for interactive API testing and documentation.
-- Alternatively, use Postman or curl:
-  - **Postman:** Import the Swagger/OpenAPI spec or manually create requests using the endpoint descriptions.
-  - **curl Example:**
-    ```bash
-    curl -X POST http://localhost:3000/api/v1/bookings \
-      -H "Content-Type: application/json" \
-      -d '{
-        "propertyId": "<property-id>",
-        "userName": "John Doe",
-        "startDate": "2025-08-10",
-        "endDate": "2025-08-12"
-      }'
-    ```
-
-### Assumptions & Notes
-- All date fields accept `YYYY-MM-DD` format; `DD-MM-YYYY` is also supported for input.
-- Bookings are soft-deleted (status set to `cancelled`).
-- Properties are soft-deleted (status set to `inactive`).
-- Pagination and filtering are available for both bookings and properties.
-- All responses are consistently formatted with metadata.
-- The API is documented and testable via Swagger UI.
-
-## Getting Started
+## Quick Start
 
 ### Prerequisites
 
-- Node.js (v18+ recommended)
-- npm or yarn
-- PostgreSQL database
+- Node.js 18+
+- PostgreSQL
 
-### Installation
+### Setup
 
 ```bash
 git clone <your-repo-url>
@@ -64,62 +37,70 @@ cd booking-api
 npm install
 ```
 
-### Environment Setup
+Create `.env` (example):
 
-1. Copy `.env.example` to `.env` and configure your database connection string.
-2. Run Prisma migrations to set up the database schema:
+```env
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/booking_api?schema=public"
+PORT=3000
+NODE_ENV=development
+```
+
+Run database migrations:
 
 ```bash
 npx prisma migrate dev --name init
 ```
 
-### Running the Application
+Start the API:
 
 ```bash
 npm run start:dev
 ```
 
-The API will be available at `http://localhost:3000/api/v1`.
+- Base URL: `http://localhost:3000/api/v1`
+- Swagger UI: `http://localhost:3000/api`
 
-### API Documentation
+### Example request
 
-Swagger UI is available at:
-
+```bash
+curl -X POST http://localhost:3000/api/v1/bookings \
+  -H "Content-Type: application/json" \
+  -d '{
+    "propertyId": "<property-id>",
+    "userName": "John Doe",
+    "startDate": "2025-08-10",
+    "endDate": "2025-08-12"
+  }'
 ```
-http://localhost:3000/api/v1/docs
-```
 
-## Usage
+## API Overview
 
-### Property Endpoints
+All endpoints are prefixed with `/api/v1`.
 
-- `GET /properties`: List all properties (paginated).
-- `GET /properties/:id`: Get property details, including availability and booked dates.
-- `POST /properties`: Create a new property.
-- `PATCH /properties/:id`: Update property details.
-- `DELETE /properties/:id`: Remove a property.
+### Properties
 
-### Booking Endpoints
+- `GET /properties` — List (pagination + optional `status`)
+- `GET /properties/:id` — Details with booked date ranges
+- `GET /properties/:id/availability` — Availability summary
+- `POST /properties` — Create
+- `PUT /properties/:id` — Update
+- `DELETE /properties/:id` — Delete
 
-- `POST /bookings`: Create a booking for a property.
-- `GET /bookings`: List all bookings.
-- `GET /bookings/:id`: Get booking details.
+### Bookings
 
-### Availability
+- `GET /bookings` — List (pagination + optional `status`)
+- `GET /bookings/:id` — Details
+- `POST /bookings` — Create (validates availability, prevents overlap)
+- `PUT /bookings/:id` — Update (re-validates availability)
+- `DELETE /bookings/:id` — Cancel (sets `status` to `cancelled`)
 
-- Property details include:
-  - `availableFrom`, `availableTo`: Date range the property can be booked.
-  - `bookedDates`: Array of booked date ranges.
-
-### Response Format
-
-All responses follow this structure:
+### Response format
 
 ```json
 {
   "success": true,
-  "message": "Descriptive message",
-  "data": { ... },
+  "message": "...",
+  "data": {},
   "length": 1,
   "timestamp": "2025-08-08T12:00:00.000Z"
 }
@@ -127,144 +108,96 @@ All responses follow this structure:
 
 ## Validation & Error Handling
 
-- Dates are validated for format and logical range.
-- Bookings are checked for overlap and property availability.
-- All errors return clear messages and appropriate HTTP status codes.
+- Request DTOs are validated using class-validator via `ValidationPipe`.
+- Dates are parsed and validated, including range checks.
+- Bookings are validated against property windows and existing bookings.
+- Errors use appropriate HTTP codes and descriptive messages.
 
 ## Testing
-
-Run unit and integration tests:
 
 ```bash
 npm run test
 ```
 
+What’s covered:
+- Service and controller unit tests for both properties and bookings
+- Overlap detection and validation paths
+
 ## Project Structure
 
-- `src/`: Main source code
-  - `properties/`: Property controllers, services, DTOs
-  - `bookings/`: Booking controllers, services, DTOs
-  - `common/`: Utilities and validators
-  - `shared/`: Response helpers
-  - `config/`: Configuration files
-  - `prisma/`: Prisma service integration
-- `prisma/`: Prisma schema and migrations
-- `test/`: End-to-end tests
+- `src/`
+  - `properties/` — controller, service, DTOs
+  - `bookings/` — controller, service, DTOs
+  - `common/` — utilities and validators (date parsing, input sanitation)
+  - `shared/` — `ResponseHelper` for consistent API responses
+  - `prisma/` — Prisma service integration
+- `prisma/` — Prisma schema and migrations
+- `generated/` — Prisma client typings
+- `test/` — e2e tests
 
-## Contributing
+## Authentication: Why it’s currently omitted and how I would add it
 
-Pull requests and issues are welcome. Please follow conventional commit messages and ensure all tests pass.
+### Why authentication is not included
+
+Authentication was explicitly out of scope for the assignment to keep the focus on core domain capabilities (properties, bookings, validation, and documentation). This allowed tighter iteration on business logic, data validation, and API design under time constraints.
+
+### How I would add authentication (production-ready plan)
+
+1. Domain & schema
+   - Add `User` model (Prisma): id, email, passwordHash, role (e.g., `admin`, `user`), timestamps
+   - Optional: `RefreshToken` model if using rotating refresh tokens
+
+2. Security & transport
+   - Use JWT Bearer tokens (short-lived access tokens, optional refresh tokens)
+   - Hash passwords with bcrypt (12–14 salt rounds)
+   - Enforce HTTPS in production and secure cookie options if cookies are used
+
+3. NestJS modules & guards
+   - `AuthModule` with `LocalStrategy` (login) and `JwtStrategy` (protect routes)
+   - `AuthService` for token issuance/verification
+   - Route guards: `JwtAuthGuard` for protected routes; `RolesGuard` using a `@Roles(...)` decorator for RBAC
+
+4. Endpoints
+   - `POST /auth/register` — Create user, hash password
+   - `POST /auth/login` — Issue access (and optional refresh) tokens
+   - `POST /auth/refresh` — Rotate tokens (if implemented)
+   - `POST /auth/logout` — Invalidate refresh token (if persisted)
+
+5. Access control
+   - Public: `GET /properties`, `GET /properties/:id`, `GET /properties/:id/availability`
+   - Authenticated: `POST/PUT/DELETE /properties` (admin role)
+   - Authenticated: `POST/PUT/DELETE /bookings` (user role), reads can be public or authenticated depending on product needs
+
+6. Documentation & DX
+   - Add `.addBearerAuth()` (already present) and secure Swagger UI via bearer auth
+   - Provide Postman collection, seed admin credentials, and example bearer flows
+
+7. Testing
+   - Unit tests for `AuthService`, strategies, and guards
+   - e2e tests covering login, protected routes, and RBAC
+
+8. Operations
+   - Store secrets in environment variables or a secret manager
+   - Token TTLs: 15m access, 7d refresh (example)
+   - Rate limiting and basic IP throttling on auth endpoints
+
+If desired, I can implement a minimal, clean version of this in a separate branch to demonstrate competence without changing the core assignment scope.
+
+### Should authentication be included to improve hiring chances?
+
+- If the spec said “no auth,” keep the default branch without auth to respect requirements.
+- To showcase broader capability, add a separate branch (e.g., `feature/auth`) implementing the plan above with tests and docs. This demonstrates practical security knowledge without deviating from the brief.
+- A small, polished auth slice (users, login, JWT guard, role-based admin for property mutations) typically improves hiring outcomes—provided it’s well-tested and documented.
+
+## Scripts
+
+- `npm run start:dev` — Start in watch mode
+- `npm run build` — Compile TypeScript
+- `npm run test` — Run unit tests
+- `npm run test:e2e` — Run e2e tests
+- `npm run lint` — Lint and fix
 
 ## License
 
 MIT
 
-## API Endpoints
-
-### Bookings
-
-#### `GET /bookings`
-Retrieve a paginated list of bookings, with optional filtering by status.
-- **Query Parameters:**
-  - `page` (number, optional): Page number (default: 1).
-  - `limit` (number, optional): Items per page (default: 10, max: 100).
-  - `status` (string, optional): Filter by booking status (`confirmed`, `cancelled`, `pending`, etc.).
-- **Response:**
-  Returns a paginated list of bookings, including metadata (`currentPage`, `pageSize`, `totalItems`, `totalPages`, `hasMore`, `length`) and booking details.
-
-#### `GET /bookings/:id`
-Retrieve details for a specific booking by its ID.
-- **Path Parameter:**
-  - `id` (string): Booking ID.
-- **Response:**
-  Returns the booking details, including associated property information. Returns a formatted error if the booking is not found.
-
-#### `POST /bookings`
-Create a new booking for a property.
-- **Body:**
-  - `propertyId` (string): ID of the property to book.
-  - `userName` (string): Name of the user making the booking.
-  - `startDate` (string, date): Booking start date (YYYY-MM-DD).
-  - `endDate` (string, date): Booking end date (YYYY-MM-DD).
-- **Validations:**
-  - Dates must be within the property's availability range.
-  - Dates must not overlap with existing bookings.
-  - `startDate` must be before `endDate`.
-  - `startDate` must be in the future.
-- **Response:**
-  Returns the created booking details, or a formatted error if validation fails.
-
-#### `PUT /bookings/:id`
-Update an existing booking.
-- **Path Parameter:**
-  - `id` (string): Booking ID.
-- **Body:**
-  - Any updatable booking fields (`propertyId`, `userName`, `startDate`, `endDate`).
-- **Validations:**
-  - Same as booking creation, with additional checks for property availability and date overlaps (excluding the current booking).
-- **Response:**
-  Returns the updated booking details, or a formatted error if validation fails.
-
-#### `DELETE /bookings/:id`
-Cancel (soft delete) a booking.
-- **Path Parameter:**
-  - `id` (string): Booking ID.
-- **Response:**
-  Sets the booking status to `cancelled` and returns the updated booking details. Returns a formatted error if the booking is not found.
-
----
-
-### Properties
-
-#### `GET /properties`
-Retrieve a paginated list of properties, with advanced filtering options.
-- **Query Parameters:**
-  - `page` (number, optional): Page number (default: 1).
-  - `limit` (number, optional): Items per page (default: 10, max: 100).
-  - `status` (string, optional): Filter by property status (`active`, `inactive`, etc.).
-  - `availableFrom` / `availableTo` (date, optional): Filter properties available within a specific date range.
-  - Additional filters (e.g., price range) as supported.
-- **Response:**
-  Returns a paginated list of properties, including metadata and property details.
-
-#### `GET /properties/:id`
-Retrieve details for a specific property by its ID.
-- **Path Parameter:**
-  - `id` (string): Property ID.
-- **Response:**
-  Returns the property details, including availability and status.
-
-#### `GET /properties/:id/availability`
-Check the availability of a property for a given date range.
-- **Path Parameter:**
-  - `id` (string): Property ID.
-- **Query Parameters:**
-  - `startDate` (date, optional): Desired start date.
-  - `endDate` (date, optional): Desired end date.
-- **Response:**
-  Returns availability information for the property, including any overlapping bookings.
-
-#### `POST /properties`
-Create a new property.
-- **Body:**
-  - Property details (title, description, price, availability dates, etc.).
-- **Response:**
-  Returns the created property details.
-
-#### `PUT /properties/:id`
-Update an existing property.
-- **Path Parameter:**
-  - `id` (string): Property ID.
-- **Body:**
-  - Any updatable property fields.
-- **Response:**
-  Returns the updated property details.
-
-#### `DELETE /properties/:id`
-Soft delete a property (if supported).
-- **Path Parameter:**
-  - `id` (string): Property ID.
-- **Response:**
-  Sets the property status to `inactive` or similar, and returns the updated property details.
-
----

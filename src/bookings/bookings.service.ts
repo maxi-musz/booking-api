@@ -11,7 +11,7 @@ import { Booking } from '../../generated/prisma';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { InputUtils } from '../common/utils/input.utils';
-import { ResponseHelper } from 'src/shared';
+import { ResponseHelper } from '../shared';
 
 @Injectable()
 export class BookingsService {
