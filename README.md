@@ -233,22 +233,22 @@ What’s covered:
 - `generated/` — Prisma client typings
 - `test/` — e2e tests
 
-## Authentication: Why it’s currently omitted and how I would add it
+## Authentication: Why it’s currently omitted on main branch and how I Implemented it on the feat branch
 
-### Why authentication is not included
+### Why authentication is not included in the main project branch
 
 Authentication was explicitly out of scope for the assignment to keep the focus on core domain capabilities (properties, bookings, validation, and documentation). This allowed tighter iteration on business logic, data validation, and API design under time constraints.
 
-### How I would add authentication (production-ready plan)
+### How I added authentication (production-ready plan)
 
 1. Domain & schema
-   - Add `User` model (Prisma): id, email, passwordHash, role (e.g., `admin`, `user`), timestamps
-   - Optional: `RefreshToken` model if using rotating refresh tokens
+   - Added `User` model (Prisma): id, email, passwordHash, role (e.g., `admin`, `user`), timestamps
+   - Optional `RefreshToken` model for rotating refresh tokens
 
 2. Security & transport
-   - Use JWT Bearer tokens (short-lived access tokens, optional refresh tokens)
-   - Hash passwords with bcrypt (12–14 salt rounds)
-   - Enforce HTTPS in production and secure cookie options if cookies are used
+   - Used JWT Bearer tokens (short-lived access tokens, optional refresh tokens)
+   - Hashed passwords with bcrypt (12–14 salt rounds)
+   - Enforced HTTPS in production and secure cookie options if cookies are used
 
 3. NestJS modules & guards
    - `AuthModule` with `LocalStrategy` (login) and `JwtStrategy` (protect routes)
