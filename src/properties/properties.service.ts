@@ -17,8 +17,8 @@ export class PropertiesService {
 
   constructor(private readonly prismaService: PrismaService) {}
 
-  async findAll(page = 1, limit = 10): Promise<any> {
-    this.logger.log(`Fetching properties with page: ${page}, limit: ${limit}`);
+  async findAll(page = 1, limit = 10, status?: string): Promise<any> {
+    this.logger.log(`Fetching properties with page: ${page}, limit: ${limit}, status: ${status}`);
 
     if (page < 1 || limit < 1 || limit > 100) {
       throw new BadRequestException(
@@ -26,16 +26,27 @@ export class PropertiesService {
       );
     }
 
-    try {
-      const properties = await this.prismaService.property.findMany({
-        skip: (page - 1) * limit,
-        take: limit,
-        orderBy: {
-          id: 'desc',
-        },
-      });
+    // Build filter
+    const where: any = {};
+    if (status) {
+      where.status = status;
+    }
+    // Add more filters as needed (e.g., price, date range)
 
-      // Format all properties' dates as YYYY-MM-DD
+    try {
+      const [properties, totalItems] = await Promise.all([
+        this.prismaService.property.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { id: 'desc' },
+        }),
+        this.prismaService.property.count({ where }),
+      ]);
+
+      const totalPages = Math.ceil(totalItems / limit);
+      const hasMore = page < totalPages;
+
       const formattedResponse = properties.map((property) => ({
         id: property.id,
         title: property.title,
@@ -43,13 +54,22 @@ export class PropertiesService {
         pricePerNight: property.pricePerNight,
         availableFrom: property.availableFrom.toISOString().slice(0, 10),
         availableTo: property.availableTo.toISOString().slice(0, 10),
+        status: property.status,
       }));
 
       this.logger.log(`Successfully fetched ${properties.length} properties`);
-      return ResponseHelper.success(
-        'Properties fetched successfully',
-        formattedResponse
-      );
+      return {
+        success: true,
+        message: 'Properties fetched successfully',
+        currentPage: page,
+        pageSize: limit,
+        totalItems,
+        totalPages,
+        hasMore,
+        length: properties.length,
+        data: formattedResponse,
+        // timestamp: new Date().toISOString(),
+      };
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
@@ -326,6 +346,35 @@ export class PropertiesService {
         `Failed to delete property with ID ${id}: ${errorMessage}`,
         errorStack,
       );
+      throw error;
+    }
+  }
+
+  async getAvailability(id: string) {
+    this.logger.log(`Fetching availability for property ID: ${id}`);
+    try {
+      const property = await this.prismaService.property.findUnique({ where: { id } });
+      if (!property) {
+        this.logger.warn(`Property with ID ${id} not found`);
+        throw new NotFoundException(`Property with ID ${id} not found`);
+      }
+      const bookings = await this.prismaService.booking.findMany({
+        where: { propertyId: id },
+        select: { startDate: true, endDate: true },
+      });
+      const bookedDates = bookings.map(b => ({
+        startDate: b.startDate.toISOString().slice(0, 10),
+        endDate: b.endDate.toISOString().slice(0, 10),
+      }));
+      const data = {
+        availableFrom: property.availableFrom.toISOString().slice(0, 10),
+        availableTo: property.availableTo.toISOString().slice(0, 10),
+        bookedDates,
+      };
+      return ResponseHelper.success('Availability retrieved successfully', data);
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      this.logger.error(`Failed to fetch availability for property ID ${id}: ${error.message}`, error.stack);
       throw error;
     }
   }

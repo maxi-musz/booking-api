@@ -14,25 +14,39 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum PropertyStatus {
+  active
+  inactive
+  archived
+}
+
+enum BookingStatus {
+  confirmed
+  cancelled
+  pending
+}
+
 model Property {
-  id            String    @id @default(uuid())
+  id            String         @id @default(uuid())
   title         String
   description   String
   pricePerNight Float
   availableFrom DateTime
   availableTo   DateTime
+  status        PropertyStatus @default(active)
   bookings      Booking[]
-  createdAt     DateTime?  @default(now())
-  updatedAt     DateTime?  @updatedAt
+  createdAt     DateTime?      @default(now())
+  updatedAt     DateTime?      @updatedAt
 }
 
 model Booking {
-  id         String   @id @default(uuid())
-  property   Property @relation(fields: [propertyId], references: [id])
+  id         String        @id @default(uuid())
+  property   Property      @relation(fields: [propertyId], references: [id])
   propertyId String
   userName   String
   startDate  DateTime
   endDate    DateTime
-  createdAt  DateTime? @default(now())
-  updatedAt  DateTime? @updatedAt
+  status     BookingStatus @default(confirmed)
+  createdAt  DateTime?     @default(now())
+  updatedAt  DateTime?     @updatedAt
 }

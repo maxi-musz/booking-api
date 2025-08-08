@@ -7,7 +7,7 @@ export interface ApiResponse<T = any> {
   limit?: number;
   totalPages?: number;
   totalItems?: number;
-  timestamp: string;
+  timestamp?: string;
   path?: string;
   method?: string;
 }
@@ -159,10 +159,6 @@ export class ResponseHelper {
     return {
       success: false,
       message,
-      data: null,
-      timestamp: new Date().toISOString(),
-      path,
-      method,
     };
   }
 

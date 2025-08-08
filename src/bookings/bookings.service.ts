@@ -19,8 +19,8 @@ export class BookingsService {
 
   constructor(private readonly prismaService: PrismaService) {}
 
-  async findAll(page = 1, limit = 10) {
-    this.logger.log(`Fetching bookings with page: ${page}, limit: ${limit}`);
+  async findAll(page = 1, limit = 10, status?: string): Promise<any> {
+    this.logger.log(`Fetching bookings with page: ${page}, limit: ${limit}, status: ${status}`);
 
     if (page < 1 || limit < 1 || limit > 100) {
       throw new BadRequestException(
@@ -28,22 +28,50 @@ export class BookingsService {
       );
     }
 
+    // Build filter
+    const where: any = {};
+    if (status) {
+      where.status = status;
+    }
+    // Add more filters as needed (e.g., date range, propertyId)
+
     try {
-      const bookings = await this.prismaService.booking.findMany({
-        skip: (page - 1) * limit,
-        take: limit,
-        include: {
-          property: true,
-        },
-        orderBy: {
-          id: 'desc',
-        },
-      });
+      const [bookings, totalItems] = await Promise.all([
+        this.prismaService.booking.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          include: { property: true },
+          orderBy: { id: 'desc' },
+        }),
+        this.prismaService.booking.count({ where }),
+      ]);
+
+      const totalPages = Math.ceil(totalItems / limit);
+      const hasMore = page < totalPages;
+
+      const formattedResponse = bookings.map((booking) => ({
+        id: booking.id,
+        propertyId: booking.propertyId,
+        userName: booking.userName,
+        startDate: booking.startDate.toISOString().slice(0, 10),
+        endDate: booking.endDate.toISOString().slice(0, 10),
+        status: booking.status,
+        property: booking.property,
+      }));
+
+      this.logger.log(`Successfully fetched ${bookings.length} bookings`);
       return {
         success: true,
         message: 'Bookings retrieved successfully',
-        data: bookings,
+        currentPage: page,
+        pageSize: limit,
+        totalItems,
+        totalPages,
+        hasMore,
         length: bookings.length,
+        data: formattedResponse,
+        timestamp: new Date().toISOString(),
       };
     } catch (error) {
       this.logger.error('Failed to fetch bookings', error.stack);
@@ -74,7 +102,9 @@ export class BookingsService {
 
       if (!booking) {
         this.logger.warn(`Booking with ID ${id} not found`);
-        throw new NotFoundException(`Booking with ID ${id} not found`);
+        return ResponseHelper.error(
+          "Failed to delete a booking"
+        )
       }
 
       return {
@@ -283,32 +313,38 @@ export class BookingsService {
   }
 
   async remove(id: string) {
-    this.logger.log(`Deleting booking with ID: ${id}`);
+    this.logger.log(`Cancelling booking with ID: ${id}`);
 
-    if (!InputUtils.isPositiveString(id)) {
-      throw new BadRequestException(
-        'Invalid booking ID. Must be a non-empty string.',
+    // Check if booking exists
+    const existingBooking = await this.prismaService.booking.findUnique({
+      where: { id }
+    });
+
+    if (!existingBooking) {
+      this.logger.error(`Booking with ID ${id} not found`);
+      return ResponseHelper.error(
+        `Booking with ID ${id} not found`,
+        `Booking with ID ${id} not found`,
+        'error'
       );
     }
 
-    // Check if booking exists
-    await this.findOne(id);
-
     try {
-      await this.prismaService.booking.delete({
+      const cancelledBooking = await this.prismaService.booking.update({
         where: { id },
-        include: {
-          property: true,
-        },
+        data: { status: 'cancelled' },
       });
-      return {
-        success: true,
-        message: 'Booking deleted successfully',
-        data: {},
-      };
+      return ResponseHelper.success(
+        'Booking cancelled successfully',
+        cancelledBooking
+      );
     } catch (error) {
-      this.logger.error('Failed to delete booking', error.stack);
-      throw error;
+      this.logger.error('Failed to cancel booking', error.stack);
+      return ResponseHelper.error(
+        'Failed to cancel booking',
+        error.message || 'Unknown error',
+        'error'
+      );
     }
   }
 
