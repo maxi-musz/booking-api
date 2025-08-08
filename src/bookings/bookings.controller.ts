@@ -24,6 +24,9 @@ import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { Request } from 'express';
+import { UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ApiBearerAuth } from '@nestjs/swagger';
 
 @ApiTags('bookings')
 @Controller('bookings')
@@ -49,7 +52,7 @@ export class BookingsController {
         {
           id: '1bc3ae29-ed44-4f08-a319-4a5faef9e1b2',
           propertyId: 'eac1d11b-65f6-4022-a065-c166e179e2ae',
-          userName: 'John Doe',
+            userName: 'Chukwuemeka Okafor',
           startDate: '2025-08-10',
           endDate: '2025-08-12',
           status: 'confirmed',
@@ -87,6 +90,8 @@ export class BookingsController {
     return this.bookingsService.findOne(id);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new booking for a property' })
@@ -98,7 +103,7 @@ export class BookingsController {
       data: {
         id: '1bc3ae29-ed44-4f08-a319-4a5faef9e1b2',
         propertyId: 'eac1d11b-65f6-4022-a065-c166e179e2ae',
-        userName: 'John Doe',
+           userName: 'Adaobi Eze',
         startDate: '2025-08-10',
         endDate: '2025-08-12',
         property: {
@@ -150,6 +155,8 @@ export class BookingsController {
     return this.bookingsService.create(createBookingDto);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Put(':id')
   @ApiOperation({ summary: 'Update a booking' })
   @ApiParam({ name: 'id', description: 'Booking ID', type: 'number' })
@@ -166,6 +173,8 @@ export class BookingsController {
     return this.bookingsService.update(id, updateBookingDto);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Delete(':id')
   @ApiOperation({ summary: 'Cancel (soft delete) a booking' })
   @ApiParam({ name: 'id', description: 'Booking ID', type: 'number' })
@@ -176,7 +185,7 @@ export class BookingsController {
       data: {
         id: '1bc3ae29-ed44-4f08-a319-4a5faef9e1b2',
         propertyId: 'eac1d11b-65f6-4022-a065-c166e179e2ae',
-        userName: 'John Doe',
+        userName: 'Ifeanyi Ubah',
         startDate: '2025-08-10T00:00:00.000Z',
         endDate: '2025-08-12T00:00:00.000Z',
         status: 'cancelled',

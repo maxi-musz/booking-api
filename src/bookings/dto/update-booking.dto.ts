@@ -14,7 +14,7 @@ export class UpdateBookingDto extends PartialType(CreateBookingDto) {
 
   @ApiProperty({
     description: 'The name of the user making the booking',
-    example: 'John Doe',
+    example: 'Ngozi Nwosu',
     maxLength: 255,
     required: false,
   })

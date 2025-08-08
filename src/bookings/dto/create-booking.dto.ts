@@ -13,7 +13,7 @@ export class CreateBookingDto {
 
   @ApiProperty({
     description: 'The name of the user making the booking',
-    example: 'John Doe',
+    example: 'Chukwuemeka Okafor',
     maxLength: 255,
   })
   @IsString()
