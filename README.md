@@ -37,7 +37,7 @@ A production-ready REST API for managing properties and bookings, built with Nes
 ### Setup
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/maxi-musz/booking-api.git
 cd booking-api
 npm install
 ```
@@ -134,9 +134,7 @@ JWT-based auth with roles is implemented.
     {
       "success": false,
       "message": "Only admins can perform this action",
-      "timestamp": "2025-08-08T12:00:00.000Z",
-      "path": "/api/v1/properties",
-      "method": "POST"
+      "timestamp": "2025-08-08T12:00:00.000Z"
     }
     ```
 
@@ -269,26 +267,18 @@ Authentication was explicitly out of scope for the assignment to keep the focus 
    - Authenticated: `POST/PUT/DELETE /bookings` (user role), reads can be public or authenticated depending on product needs
 
 6. Documentation & DX
-   - Add `.addBearerAuth()` (already present) and secure Swagger UI via bearer auth
-   - Provide Postman collection, seed admin credentials, and example bearer flows
+   - Added `.addBearerAuth()` (which is already present) and secure Swagger UI via bearer auth
+   - I will be providing Postman collection
 
 7. Testing
    - Unit tests for `AuthService`, strategies, and guards
    - e2e tests covering login, protected routes, and RBAC
 
 8. Operations
-   - Store secrets in environment variables or a secret manager
-   - Token TTLs: 15m access, 7d refresh (example)
-   - Rate limiting and basic IP throttling on auth endpoints
-
-If desired, I can implement a minimal, clean version of this in a separate branch to demonstrate competence without changing the core assignment scope.
-
-### Should authentication be included to improve hiring chances?
-
-- If the spec said “no auth,” keep the default branch without auth to respect requirements.
-- To showcase broader capability, add a separate branch (e.g., `feature/auth`) implementing the plan above with tests and docs. This demonstrates practical security knowledge without deviating from the brief.
-- A small, polished auth slice (users, login, JWT guard, role-based admin for property mutations) typically improves hiring outcomes—provided it’s well-tested and documented.
-
+   - Stored secrets in environment variables
+   - Token TTLs: 15m access, 7d refresh (can be chnaged)
+   - Addition of rate limiting and basic IP throttling on auth endpoints
+   
 ## Scripts
 
 - `npm run start:dev` — Start in watch mode
