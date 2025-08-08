@@ -35,7 +35,7 @@ export class AuthService {
         throw new ConflictException('Email already in use');
       }
 
-      const existingByPhone = await this.prisma.user.findUnique({ where: { phoneNumber } }).catch(() => null);
+      const existingByPhone = await this.prisma.user.findUnique({ where: { phoneNumber } });
       if (existingByPhone) {
         this.logger.warn(`Registration failed, phone already in use: ${phoneNumber}`);
         throw new ConflictException('Phone number already in use');

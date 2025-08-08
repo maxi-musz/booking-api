@@ -72,7 +72,7 @@ curl -X POST http://localhost:3000/api/v1/bookings \
   -H "Content-Type: application/json" \
   -d '{
     "propertyId": "<property-id>",
-    "userName": "John Doe",
+    "userName": "Chukwuemeka Okafor",
     "startDate": "2025-08-10",
     "endDate": "2025-08-12"
   }'

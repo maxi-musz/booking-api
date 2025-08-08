@@ -52,7 +52,7 @@ export class BookingsController {
         {
           id: '1bc3ae29-ed44-4f08-a319-4a5faef9e1b2',
           propertyId: 'eac1d11b-65f6-4022-a065-c166e179e2ae',
-          userName: 'John Doe',
+            userName: 'Chukwuemeka Okafor',
           startDate: '2025-08-10',
           endDate: '2025-08-12',
           status: 'confirmed',
@@ -103,7 +103,7 @@ export class BookingsController {
       data: {
         id: '1bc3ae29-ed44-4f08-a319-4a5faef9e1b2',
         propertyId: 'eac1d11b-65f6-4022-a065-c166e179e2ae',
-        userName: 'John Doe',
+           userName: 'Adaobi Eze',
         startDate: '2025-08-10',
         endDate: '2025-08-12',
         property: {
@@ -185,7 +185,7 @@ export class BookingsController {
       data: {
         id: '1bc3ae29-ed44-4f08-a319-4a5faef9e1b2',
         propertyId: 'eac1d11b-65f6-4022-a065-c166e179e2ae',
-        userName: 'John Doe',
+        userName: 'Ifeanyi Ubah',
         startDate: '2025-08-10T00:00:00.000Z',
         endDate: '2025-08-12T00:00:00.000Z',
         status: 'cancelled',

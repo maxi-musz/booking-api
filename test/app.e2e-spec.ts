@@ -41,7 +41,7 @@ describe('Bookings (e2e)', () => {
       .post('/bookings')
       .send({
         propertyId: 'property-id',
-        userName: 'John Doe',
+        userName: 'Oluwatobi Adebayo',
         startDate: '2025-08-10',
         endDate: '2025-08-12',
       })
